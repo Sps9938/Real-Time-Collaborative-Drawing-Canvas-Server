@@ -4,10 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "node server/server.js",
-    "client": "vite --config client/vite.config.js",
-    "build": "vite build --config client/vite.config.js"
+    "start": "node server/server.js",
+    "dev": "node server/server.js",
+    "build": "echo no-build-step"
   },
   "dependencies": {
     "cors": "^2.8.5",
