@@ -31,19 +31,33 @@ if (process.env.NODE_ENV === 'production') {
 const { ensureRoom } = createRooms()
 
 io.on('connection', socket => {
-  // Single-room model for now; extendable later
-  const room = ensureRoom('main')
+  let room = null
   let user
 
-  socket.on('join', payload => {
-    user = room.addUser({ id: socket.id, name: payload?.name })
+  const joinRoom = desiredId => {
+    const roomId = desiredId?.trim() || 'main'
+    const nextRoom = ensureRoom(roomId)
+    if (room && room.id === nextRoom.id) return nextRoom
+    if (room && user) {
+      // Leave the previous room and announce departure
+      socket.leave(room.id)
+      room.removeUser(user.id)
+      socket.to(room.id).emit('user:left', { userId: user.id })
+    }
+    room = nextRoom
     socket.join(room.id)
+    return room
+  }
+
+  socket.on('join', payload => {
+    room = joinRoom(payload?.room)
+    user = room.addUser({ id: socket.id, name: payload?.name })
     socket.emit('init', { user, users: room.listUsers(), strokes: room.state.all() })
     socket.to(room.id).emit('user:joined', user)
   })
 
   socket.on('stroke:start', data => {
-    if (!user) return
+    if (!user || !room) return
     const stroke = room.state.start({
       strokeId: data.strokeId,
       userId: user.id,
@@ -55,35 +69,35 @@ io.on('connection', socket => {
   })
 
   socket.on('stroke:points', data => {
-    if (!user) return
+    if (!user || !room) return
     const points = data.points || []
     room.state.addPoints(data.strokeId, points)
     socket.to(room.id).emit('stroke:points', { strokeId: data.strokeId, points, userId: user.id })
   })
 
   socket.on('stroke:end', data => {
-    if (!user) return
+    if (!user || !room) return
     const stroke = room.state.commit(data.strokeId)
     if (!stroke) return
     io.to(room.id).emit('stroke:commit', stroke)
   })
 
   socket.on('undo', () => {
-    if (!user) return
+    if (!user || !room) return
     const stroke = room.state.undo()
     if (!stroke) return
     io.to(room.id).emit('stroke:undo', { strokeId: stroke.id })
   })
 
   socket.on('redo', () => {
-    if (!user) return
+    if (!user || !room) return
     const stroke = room.state.redo()
     if (!stroke) return
     io.to(room.id).emit('stroke:redo', stroke)
   })
 
   socket.on('cursor:move', data => {
-    if (!user) return
+    if (!user || !room) return
     socket.to(room.id).emit('cursor', {
       userId: user.id,
       x: data.x,
@@ -93,8 +107,12 @@ io.on('connection', socket => {
     })
   })
 
+  socket.on('ping', data => {
+    socket.emit('pong', { ts: data?.ts })
+  })
+
   socket.on('disconnect', () => {
-    if (!user) return
+    if (!user || !room) return
     room.removeUser(user.id)
     socket.to(room.id).emit('user:left', { userId: user.id })
   })
