@@ -1,6 +1,6 @@
 export function createDrawingState() {
   const strokes = []
-  const undone = []
+  const undone = { pen: [], eraser: [] }
   const active = new Map()
   let seq = 0
 
@@ -36,25 +36,40 @@ export function createDrawingState() {
     const stroke = active.get(strokeId)
     if (!stroke) return null
     active.delete(strokeId)
-    undone.length = 0
+    if (undone[stroke.tool]) {
+      undone[stroke.tool].length = 0
+    }
     strokes.push(stroke)
     return stroke
   }
 
   // Undo the most recent committed stroke, moving it to the redo stack
-  const undo = () => {
+  const undo = tool => {
     if (!strokes.length) return null
-    const stroke = strokes.pop()
-    undone.push(stroke)
+    if (!tool) {
+      const stroke = strokes.pop()
+      if (undone[stroke.tool]) undone[stroke.tool].push(stroke)
+      return stroke
+    }
+    const idxFromEnd = [...strokes].reverse().findIndex(s => s.tool === tool)
+    if (idxFromEnd === -1) return null
+    const realIdx = strokes.length - 1 - idxFromEnd
+    const [stroke] = strokes.splice(realIdx, 1)
+    if (undone[stroke.tool]) {
+      undone[stroke.tool].push(stroke)
+    }
     return stroke
   }
 
   // Redo the most recently undone stroke, moving it back to committed strokes
-  const redo = () => {
-    if (!undone.length) return null
-    const stroke = undone.pop()
-    strokes.push(stroke)
-    return stroke
+  const redo = tool => {
+    const stack = tool ? undone[tool] : null
+    if (stack && stack.length) {
+      const stroke = stack.pop()
+      strokes.push(stroke)
+      return stroke
+    }
+    return null
   }
 
   // Remove any in-progress strokes that belong to a given user (e.g., on disconnect)
