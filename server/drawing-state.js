@@ -1,6 +1,6 @@
 export function createDrawingState() {
   const strokes = []
-  const undone = { pen: [], eraser: [] }
+  const undone = []
   const active = new Map()
   let seq = 0
 
@@ -29,10 +29,14 @@ export function createDrawingState() {
     const stroke = active.get(strokeId)
     if (!stroke) return null
     const shapeTools = ['line', 'rect', 'ellipse']
+    const singleAnchorTools = ['image', 'text']
     if (shapeTools.includes(stroke.tool)) {
       const start = stroke.points[0] || points[0]
       const last = points[points.length - 1]
       stroke.points = [start, last]
+    } else if (singleAnchorTools.includes(stroke.tool)) {
+      const anchor = points[points.length - 1]
+      stroke.points = [anchor]
     } else {
       stroke.points.push(...points)
     }
@@ -44,9 +48,7 @@ export function createDrawingState() {
     const stroke = active.get(strokeId)
     if (!stroke) return null
     active.delete(strokeId)
-    if (undone[stroke.tool]) {
-      undone[stroke.tool].length = 0
-    }
+    undone.length = 0
     strokes.push(stroke)
     return stroke
   }
@@ -54,30 +56,18 @@ export function createDrawingState() {
   // Undo the most recent committed stroke, moving it to the redo stack
   const undo = tool => {
     if (!strokes.length) return null
-    if (!tool) {
-      const stroke = strokes.pop()
-      if (undone[stroke.tool]) undone[stroke.tool].push(stroke)
-      return stroke
-    }
-    const idxFromEnd = [...strokes].reverse().findIndex(s => s.tool === tool)
-    if (idxFromEnd === -1) return null
-    const realIdx = strokes.length - 1 - idxFromEnd
-    const [stroke] = strokes.splice(realIdx, 1)
-    if (undone[stroke.tool]) {
-      undone[stroke.tool].push(stroke)
-    }
+    const stroke = strokes.pop()
+    undone.push(stroke)
     return stroke
   }
 
   // Redo the most recently undone stroke, moving it back to committed strokes
   const redo = tool => {
-    const stack = tool ? undone[tool] : null
-    if (stack && stack.length) {
-      const stroke = stack.pop()
-      strokes.push(stroke)
-      return stroke
-    }
-    return null
+    if (!undone.length) return null
+    const stroke = undone.pop()
+    stroke.seq = seq++
+    strokes.push(stroke)
+    return stroke
   }
 
   // Remove any in-progress strokes that belong to a given user (e.g., on disconnect)
@@ -92,7 +82,7 @@ export function createDrawingState() {
   // Wipe all strokes and redo stacks; used for full-canvas resets
   const clear = () => {
     strokes.length = 0
-    Object.values(undone).forEach(stack => (stack.length = 0))
+    undone.length = 0
     active.clear()
   }
 
