@@ -8,13 +8,14 @@ export function createDrawingState() {
   const all = () => strokes.slice()
 
   // Begin tracking a new in-progress stroke for a user
-  const start = ({ strokeId, userId, tool, color, size }) => {
+  const start = ({ strokeId, userId, tool, color, size, ...rest }) => {
     const stroke = {
       id: strokeId,
       userId,
       tool,
       color,
       size,
+      ...rest,
       points: [],
       seq: seq++,
       createdAt: Date.now()

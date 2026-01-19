@@ -58,12 +58,14 @@ io.on('connection', socket => {
 
   socket.on('stroke:start', data => {
     if (!user || !room) return
+    const { strokeId, tool, color, size, ...rest } = data
     const stroke = room.state.start({
-      strokeId: data.strokeId,
+      strokeId,
       userId: user.id,
-      tool: data.tool,
-      color: data.color,
-      size: data.size
+      tool,
+      color,
+      size,
+      ...rest
     })
     socket.to(room.id).emit('stroke:start', { ...stroke, points: [] })
   })
