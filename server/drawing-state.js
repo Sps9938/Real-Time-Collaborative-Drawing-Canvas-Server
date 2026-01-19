@@ -28,7 +28,14 @@ export function createDrawingState() {
   const addPoints = (strokeId, points) => {
     const stroke = active.get(strokeId)
     if (!stroke) return null
-    stroke.points.push(...points)
+    const shapeTools = ['line', 'rect', 'ellipse']
+    if (shapeTools.includes(stroke.tool)) {
+      const start = stroke.points[0] || points[0]
+      const last = points[points.length - 1]
+      stroke.points = [start, last]
+    } else {
+      stroke.points.push(...points)
+    }
     return stroke
   }
 
