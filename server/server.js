@@ -98,6 +98,12 @@ io.on('connection', socket => {
     io.to(room.id).emit('stroke:redo', stroke)
   })
 
+  socket.on('clear', () => {
+    if (!user || !room) return
+    room.state.clear()
+    io.to(room.id).emit('clear')
+  })
+
   socket.on('cursor:move', data => {
     if (!user || !room) return
     socket.to(room.id).emit('cursor', {

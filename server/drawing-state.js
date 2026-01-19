@@ -89,5 +89,12 @@ export function createDrawingState() {
     }
   }
 
-  return { all, start, addPoints, commit, undo, redo, dropActiveByUser }
+  // Wipe all strokes and redo stacks; used for full-canvas resets
+  const clear = () => {
+    strokes.length = 0
+    Object.values(undone).forEach(stack => (stack.length = 0))
+    active.clear()
+  }
+
+  return { all, start, addPoints, commit, undo, redo, dropActiveByUser, clear }
 }
